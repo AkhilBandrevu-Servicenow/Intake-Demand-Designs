@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resource Assignment — Demand Workspace Demo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #16181d;
+    --muted: #6b7280;
+    --line: #e3e6ea;
+    --blue: #035fa3;
+    --blue-link: #1f6fc4;
+    --navy: #082a3a;
+    --green: #62d84e;
+    --teal: #044355;
+    --row-alt: #f4f6f8;
+    --tray-red: #e7430d;
+    --pending-bg: #fdf0d5;
+    --pending-tx: #9a6700;
+    --sel: #e8f0f6;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: #fff;
+    font-size: 14px;
+  }
+  button { font-family: inherit; cursor: pointer; }
+
+  /* ---------- Top nav ---------- */
+  .topnav {
+    background: var(--navy);
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    color: #fff;
+    gap: 28px;
+    position: relative;
+  }
+  .topnav .logo { display: flex; align-items: center; }
+  .topnav .navlinks { display: flex; gap: 24px; font-size: 14.5px; }
+  .topnav .navlinks span { cursor: pointer; opacity: .92; }
+  .topnav .dots { color: #cbd5dc; letter-spacing: 2px; }
+  .topnav .ws-pill {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 22px; padding: 8px 22px;
+    font-weight: 600; display: flex; align-items: center; gap: 8px;
+  }
+  .topnav .ws-pill .star { color: var(--green); }
+  .topnav .right-icons { margin-left: auto; display: flex; align-items: center; gap: 18px; color: #cbd5dc; }
+  .topnav .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #d97757; color: #fff; display: flex; align-items: center;
+    justify-content: center; font-size: 12px; font-weight: 600;
+  }
+
+  /* ---------- Layout ---------- */
+  .shell { display: flex; min-height: calc(100vh - 56px); }
+  .railbar {
+    width: 54px; background: var(--navy); flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center;
+    padding-top: 18px; gap: 26px; color: #b9c4cc;
+  }
+  .railbar .ricon { font-size: 18px; opacity: .8; }
+  .railbar .ricon.active { color: #fff; opacity: 1; }
+
+  .sidebar {
+    width: 240px; flex-shrink: 0; border-right: 1px solid var(--line);
+    padding: 22px 0; background: #fff;
+  }
+  .sidebar .eyebrow {
+    font-size: 11px; letter-spacing: .06em; color: var(--muted);
+    text-transform: uppercase; padding: 0 22px; margin-bottom: 8px;
+  }
+  .sidebar h2 { font-size: 16px; padding: 0 22px; line-height: 1.25; }
+  .sidebar .state {
+    font-size: 12.5px; color: var(--muted); padding: 8px 22px 18px; border-bottom: 1px solid var(--line);
+  }
+  .sidebar .state b { color: var(--ink); font-weight: 600; }
+  .sidebar nav { margin-top: 12px; }
+  .sidebar nav a {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 22px; font-size: 14px; color: var(--ink);
+    text-decoration: none;
+  }
+  .sidebar nav a .ic { width: 16px; text-align: center; color: var(--muted); }
+  .sidebar nav a.active { background: var(--sel); font-weight: 600; border-left: 3px solid var(--blue); padding-left: 19px; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  /* ---------- Breadcrumb ---------- */
+  .crumb {
+    padding: 12px 26px; font-size: 13px; color: var(--muted);
+    border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px;
+  }
+  .crumb a { color: var(--blue-link); text-decoration: none; }
+  .crumb .chev { color: #b6bcc3; }
+  .crumb .opt {
+    background: #eef4f8; color: var(--blue-link); border-radius: 4px;
+    padding: 2px 9px; font-size: 12px; margin-left: 4px;
+  }
+
+  /* ---------- Content header ---------- */
+  .content { padding: 22px 26px; flex: 1; }
+  .title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .title-row h1 { font-size: 26px; font-weight: 600; display: flex; align-items: center; gap: 12px; }
+  .title-row .mini-btns { display: flex; gap: 6px; }
+  .title-row .mini-btns button {
+    width: 30px; height: 30px; border: 1px solid var(--line); background: #fff;
+    border-radius: 6px; color: var(--muted); font-size: 13px;
+  }
+  .head-ctrls { display: flex; align-items: center; gap: 10px; }
+  .toggle-wrap { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .toggle {
+    width: 38px; height: 20px; border-radius: 12px; background: var(--green);
+    position: relative; border: none;
+  }
+  .toggle::after {
+    content: ""; position: absolute; right: 2px; top: 2px; width: 16px; height: 16px;
+    background: #fff; border-radius: 50%; transition: .15s;
+  }
+  .toggle.off { background: #c4cbd2; }
+  .toggle.off::after { right: 20px; }
+  .pill-select {
+    border: 1px solid var(--line); border-radius: 6px; background: #fff;
+    padding: 7px 12px; font-size: 13px; color: var(--ink); display: flex; align-items: center; gap: 8px;
+  }
+  .btn-new {
+    background: var(--blue); color: #fff; border: none; border-radius: 6px;
+    padding: 8px 16px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px;
+  }
+  .btn-new:hover { background: #024d85; }
+  .btn-icon {
+    width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 6px;
+    background: #fff; color: var(--muted);
+  }
+
+  .timeline-row { display: flex; gap: 56px; margin: 20px 0 10px; }
+  .timeline-row .lbl { font-size: 11px; letter-spacing: .05em; color: var(--muted); text-transform: uppercase; }
+  .timeline-row .val { font-size: 14px; margin-top: 4px; }
+  .badge-pending {
+    display: inline-block; background: var(--pending-bg); color: var(--pending-tx);
+    border-radius: 6px; padding: 3px 12px; font-size: 13px; margin-top: 2px;
+  }
+
+  .groupby { text-align: right; color: var(--muted); font-size: 13px; margin: 14px 0 6px; }
+  .groupby b { color: var(--ink); }
+
+  /* ---------- Grid table ---------- */
+  .gridwrap { border-top: 1px solid var(--line); overflow-x: auto; }
+  table.grid { border-collapse: collapse; width: 100%; min-width: 1100px; }
+  table.grid th {
+    text-align: left; font-size: 11px; letter-spacing: .04em; color: var(--muted);
+    text-transform: uppercase; font-weight: 600; padding: 12px 14px; white-space: nowrap;
+    border-bottom: 1px solid var(--line); background: #fff;
+  }
+  table.grid th.month, table.grid td.month { text-align: center; min-width: 78px; border-left: 1px solid var(--line); }
+  table.grid td {
+    padding: 13px 14px; font-size: 13.5px; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  table.grid .drag { color: #c4cbd2; cursor: grab; width: 24px; }
+  table.grid a.dlink { color: var(--blue-link); text-decoration: none; }
+  tr.alt { background: var(--row-alt); }
+  td.hr-red { background: var(--tray-red); color: #fff; font-weight: 700; text-align: center; }
+  td.hr-edit { cursor: cell; }
+  td.hr-edit:hover { box-shadow: inset 0 0 0 1px rgba(3,95,163,.35); }
+  td.editing { padding: 0 !important; }
+  td.editing input {
+    width: 100%; height: 100%; min-height: 42px; border: 2px solid var(--blue);
+    text-align: center; font-size: 13.5px; font-family: inherit; padding: 0 4px;
+    background: #fff; color: var(--ink); outline: none;
+  }
+  tr.unknown-row td:not(.month) { background: #fdeeea; font-style: italic; }
+  tr.unknown-row td.first-grp { font-style: italic; color: var(--ink); }
+  .caret { color: var(--muted); margin-right: 6px; }
+
+  /* ---------- Bottom tray ---------- */
+  .tray-gap { height: 28px; background: #eef1f4; margin: 24px -26px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .tray-head {
+    display: flex; align-items: center; gap: 10px; padding: 14px 26px 8px;
+    font-size: 14px;
+  }
+  .tray-count {
+    background: #e3e6ea; border-radius: 12px; padding: 1px 10px; font-size: 12px; color: var(--ink);
+  }
+  .tray-head .filter-ic { margin-left: auto; color: var(--blue-link); }
+  .tray-empty { text-align: center; color: var(--muted); padding: 56px 0; font-size: 14px; }
+
+  /* ---------- Image-3 style full table ---------- */
+  .ra3-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .ra3-head h1 { font-size: 24px; font-weight: 600; }
+  .ra3-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* ---------- Form (modal) ---------- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(8,20,28,.45); display: none;
+    align-items: flex-start; justify-content: center; z-index: 50; overflow-y: auto; padding: 30px 16px;
+  }
+  .overlay.open { display: flex; }
+  .form-card {
+    background: #fff; width: 100%; max-width: 1180px; border-radius: 10px; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  .form-crumb {
+    background: #f4f6f8; border-bottom: 1px solid var(--line); padding: 12px 28px;
+    font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px;
+  }
+  .form-crumb .chev { color: #b6bcc3; }
+  .form-crumb b { color: var(--ink); }
+  .form-body { padding: 26px 32px 32px; }
+  .form-body > h2 { font-size: 30px; font-weight: 600; margin-bottom: 14px; }
+  .tabrow { border-bottom: 1px solid var(--line); margin-bottom: 26px; }
+  .tabrow .tab {
+    display: inline-block; padding: 10px 4px; font-size: 15px; color: var(--green-dark, #1d7a12);
+    border-bottom: 2px solid var(--green); font-weight: 600;
+  }
+  .section-title {
+    display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; margin-bottom: 24px;
+  }
+  .section-title .grip { color: #c4cbd2; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 40px; }
+  .field label { display: block; font-size: 13.5px; margin-bottom: 7px; }
+  .field label .req { color: #c0392b; margin-left: 3px; }
+  .field input, .field select {
+    width: 100%; padding: 11px 12px; border: 1px solid #c4cbd2; border-radius: 6px;
+    font-size: 14px; font-family: inherit; background: #fff; color: var(--ink);
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px rgba(3,95,163,.15); }
+  .field.focused input, .field.focused select { border-color: var(--green); box-shadow: 0 0 0 2px rgba(98,216,78,.3); }
+  .field .with-ic { position: relative; }
+  .field .with-ic .srch { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .checkfield { display: flex; align-items: center; gap: 10px; padding-top: 30px; }
+  .checkfield input { width: 18px; height: 18px; }
+  .notes-field { margin-top: 22px; }
+  .notes-field textarea {
+    width: 100%; min-height: 70px; padding: 11px 12px; border: 1px solid #c4cbd2;
+    border-radius: 6px; font-family: inherit; font-size: 14px; resize: vertical;
+  }
+  .form-actions {
+    display: flex; justify-content: flex-end; gap: 12px; padding: 20px 32px;
+    border-top: 1px solid var(--line); background: #fafbfc;
+  }
+  .btn-submit { background: var(--blue); color: #fff; border: none; border-radius: 6px; padding: 10px 22px; font-weight: 600; font-size: 14px; }
+  .btn-submit:hover { background: #024d85; }
+  .btn-cancel { background: #fff; border: 1px solid #c4cbd2; border-radius: 6px; padding: 10px 22px; font-size: 14px; color: var(--ink); }
+  .hint {
+    margin-top: 4px; font-size: 12px; color: var(--muted);
+  }
+
+  /* ---------- Start screen ---------- */
+  .picker { max-width: 980px; margin: 0 auto; padding: 56px 24px 40px; }
+  .picker .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--blue); font-weight: 700; }
+  .picker h1 { font-size: 34px; font-weight: 700; margin: 8px 0 10px; line-height: 1.1; }
+  .picker h1 span { color: var(--green); }
+  .picker p.sub { color: var(--muted); font-size: 15px; max-width: 620px; margin-bottom: 34px; }
+  .cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
+  .pcard {
+    border: 2px solid var(--line); border-radius: 14px; padding: 24px; background: #fff;
+    text-align: left; transition: .15s; display: flex; flex-direction: column;
+  }
+  .pcard:hover { border-color: var(--blue); transform: translateY(-3px); box-shadow: 0 12px 28px rgba(8,42,58,.12); }
+  .pcard .rulebadge {
+    display: inline-block; background: var(--teal); color: #fff; font-size: 12px; font-weight: 700;
+    border-radius: 16px; padding: 4px 14px; margin-bottom: 14px; align-self: flex-start;
+  }
+  .pcard h3 { font-size: 18px; margin-bottom: 8px; }
+  .pcard p { font-size: 13.5px; color: var(--muted); line-height: 1.5; flex: 1; }
+  .pcard .go {
+    margin-top: 18px; background: var(--green); color: var(--navy); border: none;
+    border-radius: 22px; padding: 9px 0; font-weight: 700; font-size: 14px; width: 100%;
+  }
+  .pcard .go:hover { background: #7be86a; }
+  .backlink {
+    display: inline-flex; align-items: center; gap: 6px; color: var(--blue-link);
+    font-size: 13px; cursor: pointer; padding: 10px 26px; text-decoration: none;
+  }
+
+  footer.snfoot { padding: 22px 0; text-align: center; font-size: 12px; color: #9aa4ad; font-weight: 300; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ===================== TOP NAV ===================== -->
+<div class="topnav">
+  <div class="logo">
+    <svg xmlns="http://www.w3.org/2000/svg" width="132" height="20" viewBox="0 0 132 20"><path d="M32.022,6.391a5.626,5.626,0,0,0-3.61,1.3V6.523H25.119V19.35h3.425v-8.2a4.073,4.073,0,0,1,3.109-1.588,3.494,3.494,0,0,1,1.374.206V6.479a5.851,5.851,0,0,0-1.005-.088" fill="#ffffff" fill-rule="evenodd"/><path d="M2.16,15.436a5.369,5.369,0,0,0,3.5,1.269c.922,0,1.633-.45,1.633-1.084,0-1.931-6.191-1.243-6.191-5.369,0-2.459,2.371-3.993,4.9-3.993a7.9,7.9,0,0,1,4.32,1.3L8.72,10.04a4.3,4.3,0,0,0-2.45-.872c-.948,0-1.739.37-1.739,1.031,0,1.666,6.192,1.005,6.192,5.448,0,2.46-2.4,3.967-5.085,3.967A8.815,8.815,0,0,1,.5,17.9Z" fill="#ffffff" fill-rule="evenodd"/><path d="M23.657,12.817c0-3.57-2.5-6.558-6.034-6.558-3.794,0-6.218,3.12-6.218,6.691A6.4,6.4,0,0,0,18.1,19.614a6.919,6.919,0,0,0,5.243-2.3l-1.95-1.957a4.515,4.515,0,0,1-3.214,1.481A3.36,3.36,0,0,1,14.725,13.8h8.853A5.735,5.735,0,0,0,23.657,12.817Zm-8.774-1.533a2.775,2.775,0,0,1,2.74-2.248,2.552,2.552,0,0,1,2.53,2.248Z" fill="#ffffff" fill-rule="evenodd"/><polygon points="41.19 14.351 44.694 6.523 48.252 6.523 42.376 19.35 40.005 19.35 34.129 6.523 37.686 6.523 41.19 14.351" fill="#ffffff" fill-rule="evenodd"/><path d="M51.128.5A2.2,2.2,0,1,1,48.888,2.7,2.2,2.2,0,0,1,51.128.5" fill="#ffffff" fill-rule="evenodd"/><rect x="49.415" y="6.523" width="3.425" height="12.827" fill="#ffffff"/><path d="M67,16.731a6.766,6.766,0,0,1-5.8,2.883,6.68,6.68,0,1,1,.026-13.355,6.808,6.808,0,0,1,5.375,2.565l-2.424,2.142a3.7,3.7,0,0,0-2.951-1.534A3.433,3.433,0,0,0,57.78,12.95a3.383,3.383,0,0,0,3.531,3.49,3.741,3.741,0,0,0,3.056-1.692Z" fill="#ffffff" fill-rule="evenodd"/><path d="M79.442,17.313a6.918,6.918,0,0,1-5.243,2.3,6.4,6.4,0,0,1-6.692-6.664c0-3.571,2.424-6.691,6.218-6.691,3.53,0,6.033,2.988,6.033,6.558a5.635,5.635,0,0,1-.079.979H70.826a3.36,3.36,0,0,0,3.452,3.041,4.52,4.52,0,0,0,3.215-1.481Zm-3.188-6.029a2.551,2.551,0,0,0-2.529-2.248,2.774,2.774,0,0,0-2.74,2.248Z" fill="#ffffff" fill-rule="evenodd"/><path d="M81.12,19.35V6.523h3.293V7.554a5.625,5.625,0,0,1,3.609-1.295,5.747,5.747,0,0,1,4.427,2.063,6.482,6.482,0,0,1,1.317,4.5V19.35H90.341v-6.8a3.11,3.11,0,0,0-.764-2.407,2.69,2.69,0,0,0-1.923-.714,4.076,4.076,0,0,0-3.109,1.587V19.35Z" fill="#ffffff" fill-rule="evenodd"/><path d="M102.586,6.259A7.5,7.5,0,0,0,97.419,19.21a1.481,1.481,0,0,0,1.926.1,5.355,5.355,0,0,1,6.394,0,1.485,1.485,0,0,0,1.937-.113,7.5,7.5,0,0,0-5.09-12.94M102.542,17.5a3.637,3.637,0,0,1-3.734-3.733,3.734,3.734,0,1,1,7.468,0,3.637,3.637,0,0,1-3.734,3.733" fill="#62d84e" fill-rule="evenodd"/><polygon points="116.788 19.35 114.237 19.35 109.15 6.523 112.57 6.523 115.359 13.853 118.094 6.523 120.952 6.523 123.662 13.853 126.475 6.523 129.896 6.523 124.809 19.35 122.258 19.35 119.523 12.046 116.788 19.35" fill="#ffffff" fill-rule="evenodd"/><path d="M129.935,17.9h-.289v.543H129.4V16.957h.6a.476.476,0,0,1,.478.478.469.469,0,0,1-.295.432l.338.579h-.268Zm-.289-.219H130a.249.249,0,0,0,0-.5h-.351Z" fill="#ffffff"/><path d="M129.9,16.348a1.379,1.379,0,1,1-1.378,1.379,1.381,1.381,0,0,1,1.378-1.379m0-.218a1.6,1.6,0,1,0,1.6,1.6,1.6,1.6,0,0,0-1.6-1.6Z" fill="#ffffff"/></svg>
+  </div>
+  <div class="navlinks">
+    <span>All</span><span>Favorites</span><span>History</span><span>Workspaces</span>
+    <span class="dots">⋮</span>
+  </div>
+  <div class="ws-pill">Strategic Planning Workspace <span class="star">★</span></div>
+  <div class="right-icons">
+    <span>✦</span><span>💬</span><span>?</span><span>🔔</span>
+    <div class="avatar">JL</div>
+  </div>
+</div>
+
+<!-- ===================== START / PICKER SCREEN ===================== -->
+<div id="picker" class="picker">
+  <div class="eyebrow">Demand Workspace · Resource Assignment Demo</div>
+  <h1><span>Pick a workflow</span> to simulate</h1>
+  <p class="sub">Each option is an independent demo of how a new resource assignment is handled. Choose one, then use <b>New</b> to open the creation form and watch the routing behaviour for that option.</p>
+  <div class="cards">
+    <div class="pcard">
+      <span class="rulebadge">Option A</span>
+      <h3>User → Top, else bottom tray</h3>
+      <p>If a <b>Resource (user)</b> is provided, a grouped row with the user name is added to the top tray. If <b>no Resource</b> is given, it drops into the bottom <i>Unassigned assignments</i> tray.</p>
+      <button class="go" onclick="startFlow(2)">Run Option A</button>
+    </div>
+    <div class="pcard">
+      <span class="rulebadge">Option B</span>
+      <h3>User → Top tray</h3>
+      <p>If a <b>Resource (user)</b> is provided, a grouped row with the user name is added to the top tray. If <b>no Resource</b> is given, it lands under <i>Unknown</i> (red allocation cells).</p>
+      <button class="go" onclick="startFlow(1)">Run Option B</button>
+    </div>
+    <div class="pcard">
+      <span class="rulebadge">Option C</span>
+      <h3>Assigned → Single row table</h3>
+      <p>When a new assignment is created, it appears as a single row in a full role-based table (Image 3 layout) with monthly hours and <b>no bottom tray</b>.</p>
+      <button class="go" onclick="startFlow(3)">Run Option C</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== WORKSPACE (Rule 1 & 2 layout) ===================== -->
+<div id="ws-grid" class="hidden">
+  <a class="backlink" onclick="goHome()">← Back to workflow picker</a>
+  <div class="shell">
+    <div class="railbar">
+      <span class="ricon">⌂</span><span class="ricon">▢</span>
+      <span class="ricon active">▣</span><span class="ricon">▤</span><span class="ricon">≣</span>
+    </div>
+    <div class="sidebar">
+      <div class="eyebrow">Current Demand</div>
+      <h2>Automated Data Retention &amp; Deletion System</h2>
+      <div class="state">State <b>Draft</b> &nbsp;|&nbsp; Type <b>Project</b></div>
+      <nav>
+        <a href="#"><span class="ic">⌂</span> Overview</a>
+        <a href="#"><span class="ic">↻</span> Playbook</a>
+        <a href="#"><span class="ic">☰</span> Details</a>
+        <a href="#"><span class="ic">📊</span> Financials</a>
+        <a href="#" class="active"><span class="ic">👤</span> Resource assignments</a>
+        <a href="#"><span class="ic">✔</span> Demand tasks</a>
+        <a href="#"><span class="ic">🗎</span> Docs</a>
+        <a href="#"><span class="ic">🔍</span> Similar Demands</a>
+      </nav>
+    </div>
+    <div class="main">
+      <div class="crumb">
+        <a onclick="goHome()">Demands</a><span class="chev">›</span>
+        <span>Automated Data Retention &amp; Deletion System</span>
+        <span class="opt" id="grid-opt">Option 1</span>
+      </div>
+      <div class="content">
+        <div class="title-row">
+          <h1>Automated Data Retention &amp; Deletion System
+            <span class="mini-btns"><button>✎</button><button>↻</button><button>🔗</button></span>
+          </h1>
+          <div class="head-ctrls">
+            <div class="toggle-wrap"><span>Unassigned assignments</span><button class="toggle" id="utoggle" onclick="this.classList.toggle('off');toggleTray()"></button></div>
+            <div class="pill-select">Hours ▾</div>
+            <div class="pill-select">Monthly ▾</div>
+            <button class="btn-new" onclick="openForm()">New ▾</button>
+            <button class="btn-icon">⋯</button>
+          </div>
+        </div>
+
+        <div class="timeline-row">
+          <div><div class="lbl">Timeline</div><div class="val">01-01-2026 → 31-12-2026</div></div>
+          <div><div class="lbl">Status</div><span class="badge-pending">Pending</span></div>
+        </div>
+
+        <div class="groupby">Group by <b>Parent item ▾</b></div>
+
+        <div class="gridwrap">
+          <table class="grid">
+            <thead>
+              <tr>
+                <th></th><th>Resource &amp; Task</th><th>Parent Item</th><th>Type</th><th>Owner</th>
+                <th>Resource Status</th><th>Task Effort</th><th>Start Date</th>
+                <th class="month">Jan</th><th class="month">Feb</th><th class="month">Mar</th>
+                <th class="month">Apr</th><th class="month">May</th><th class="month">Jun</th>
+                <th class="month">Jul</th><th class="month">Aug</th>
+              </tr>
+            </thead>
+            <tbody id="grid-body">
+              <!-- rows injected -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Bottom tray -->
+        <div id="bottom-tray">
+          <div class="tray-gap"></div>
+          <div class="tray-head">
+            <span>Unassigned assignments</span>
+            <span class="tray-count" id="tray-count">0</span>
+            <span class="filter-ic">⛃</span>
+          </div>
+          <div class="gridwrap">
+            <table class="grid">
+              <thead>
+                <tr>
+                  <th>Task</th><th>Parent Item</th><th>Type</th><th>Owner</th><th>Task Effort</th>
+                  <th>Group</th><th>Role</th>
+                  <th class="month">Jan</th><th class="month">Feb</th><th class="month">Mar</th>
+                  <th class="month">Apr</th><th class="month">May</th><th class="month">Jun</th>
+                  <th class="month">Jul</th><th class="month">Aug</th>
+                </tr>
+              </thead>
+              <tbody id="tray-body">
+                <tr id="tray-empty"><td colspan="15"><div class="tray-empty">No Results</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== WORKSPACE (Rule 3 — full table) ===================== -->
+<div id="ws-table" class="hidden">
+  <a class="backlink" onclick="goHome()">← Back to workflow picker</a>
+  <div class="shell">
+    <div class="railbar">
+      <span class="ricon">⌂</span><span class="ricon">▢</span>
+      <span class="ricon active">▣</span><span class="ricon">▤</span><span class="ricon">≣</span>
+    </div>
+    <div class="sidebar">
+      <div class="eyebrow">Current Demand</div>
+      <h2>Automated Data Retention &amp; Deletion System</h2>
+      <div class="state">State <b>Draft</b> &nbsp;|&nbsp; Type <b>Project</b></div>
+      <nav>
+        <a href="#"><span class="ic">⌂</span> Overview</a>
+        <a href="#"><span class="ic">↻</span> Playbook</a>
+        <a href="#"><span class="ic">☰</span> Details</a>
+        <a href="#"><span class="ic">📊</span> Financials</a>
+        <a href="#" class="active"><span class="ic">👤</span> Resource assignments</a>
+        <a href="#"><span class="ic">✔</span> Demand tasks</a>
+        <a href="#"><span class="ic">🗎</span> Docs</a>
+        <a href="#"><span class="ic">🔍</span> Similar Demands</a>
+      </nav>
+    </div>
+    <div class="main">
+      <div class="crumb">
+        <a onclick="goHome()">Demands</a><span class="chev">›</span>
+        <span>Automated Data Retention &amp; Deletion System</span>
+        <span class="opt">Option 3</span>
+      </div>
+      <div class="content">
+        <div class="ra3-head">
+          <h1>Resource assignments</h1>
+          <div class="ra3-actions">
+            <button class="btn-new" onclick="openForm()">New</button>
+            <button class="btn-icon">⛃</button>
+            <button class="btn-icon">⋯</button>
+          </div>
+        </div>
+        <div class="gridwrap">
+          <table class="grid">
+            <thead>
+              <tr>
+                <th></th><th>Group</th><th>Role</th><th>Start</th><th>End</th><th>#</th><th>Type</th><th>Status</th>
+                <th class="month">Jan 2026</th><th class="month">Feb 2026</th><th class="month">Mar 2026</th>
+                <th class="month">Apr 2026</th><th class="month">May 2026</th><th class="month">Jun 2026</th>
+                <th class="month">Jul 2026</th><th class="month">Aug 2026</th>
+              </tr>
+            </thead>
+            <tbody id="table-body">
+              <!-- seeded + injected rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== FORM MODAL ===================== -->
+<div class="overlay" id="overlay">
+  <div class="form-card">
+    <div class="form-crumb">
+      🛒 Demands <span class="chev">›</span> Automated Data Retention &amp; Deletion System
+      <span class="chev">›</span> <b>Create New Resource assignment</b>
+    </div>
+    <div class="form-body">
+      <h2>Create New Resource assignment</h2>
+      <div class="tabrow"><span class="tab">Details</span></div>
+      <div class="section-title"><span class="grip">⋮</span> Resource assignment <span style="margin-left:auto;color:#c4cbd2">⌃</span></div>
+
+      <div class="form-grid">
+        <div class="field focused">
+          <label>Assignment type</label>
+          <select id="f-atype"><option>User</option><option>Group</option><option>Requirement</option></select>
+        </div>
+        <div class="field">
+          <label>Name</label>
+          <input id="f-name" type="text" placeholder="">
+        </div>
+
+        <div class="field">
+          <label>Resource</label>
+          <div class="with-ic"><input id="f-resource" type="text" placeholder=""><span class="srch">🔍</span></div>
+          <div class="hint" id="res-hint"></div>
+        </div>
+        <div class="field">
+          <label>Task</label>
+          <div class="with-ic"><input id="f-task" type="text" value="DMND0001101"><span class="srch">🔍</span></div>
+        </div>
+
+        <div class="field">
+          <label>Group</label>
+          <div class="with-ic"><input id="f-group" type="text" placeholder=""><span class="srch">🔍</span></div>
+        </div>
+        <div class="field">
+          <label>Start date <span class="req">*</span></label>
+          <input id="f-start" type="date" value="2026-01-01">
+        </div>
+
+        <div class="field">
+          <label>Role</label>
+          <div class="with-ic"><input id="f-role" type="text" placeholder=""><span class="srch">🔍</span></div>
+        </div>
+        <div class="field">
+          <label>End date <span class="req">*</span></label>
+          <input id="f-end" type="date" value="2026-12-31">
+        </div>
+
+        <div class="field">
+          <label>Skill</label>
+          <div class="with-ic"><input id="f-skill" type="text" placeholder=""><span class="srch">🔍</span></div>
+        </div>
+        <div class="field">
+          <label>Resource status</label>
+          <select id="f-rstatus"><option>-- None --</option><option>Pending</option><option>Confirmed</option></select>
+        </div>
+
+        <div class="field">
+          <label>Effort type</label>
+          <select id="f-etype"><option>FTE</option><option>Hours</option></select>
+        </div>
+        <div class="checkfield">
+          <input type="checkbox" id="f-rate"><label for="f-rate" style="margin:0">Rate override</label>
+        </div>
+
+        <div class="field">
+          <label>Effort</label>
+          <input id="f-effort" type="number" value="1">
+        </div>
+        <div class="field">
+          <label>Ready for review</label>
+          <select id="f-review"><option>No</option><option>Yes</option></select>
+        </div>
+      </div>
+
+      <div class="notes-field">
+        <label style="display:block;font-size:13.5px;margin-bottom:7px">Notes</label>
+        <textarea></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="closeForm()">Cancel</button>
+      <button class="btn-submit" onclick="submitForm()">Submit</button>
+    </div>
+  </div>
+</div>
+
+<footer class="snfoot">© 2026 ServiceNow, Inc. All rights reserved.</footer>
+
+<script>
+  var currentFlow = null;          // 1, 2, or 3
+  var MONTHS3 = [160,168,168,176,184,168,176,168]; // Jan..Aug placeholder pattern (Image 3)
+
+  function startFlow(rule) {
+    currentFlow = rule;
+    document.getElementById('picker').classList.add('hidden');
+    resetGrid();
+    resetTable();
+    if (rule === 3) {
+      document.getElementById('ws-grid').classList.add('hidden');
+      document.getElementById('ws-table').classList.remove('hidden');
+    } else {
+      document.getElementById('ws-table').classList.add('hidden');
+      document.getElementById('ws-grid').classList.remove('hidden');
+      document.getElementById('grid-opt').textContent = (rule === 1 ? 'Option 1' : 'Option 2');
+      // Rule 2 demo: show the bottom tray by default; Rule 1: tray toggle on too
+      document.getElementById('utoggle').classList.remove('off');
+      toggleTray();
+    }
+  }
+
+  function goHome() {
+    currentFlow = null;
+    document.getElementById('ws-grid').classList.add('hidden');
+    document.getElementById('ws-table').classList.add('hidden');
+    document.getElementById('picker').classList.remove('hidden');
+  }
+
+  /* ---------- Grid (Rule 1 & 2) ---------- */
+  function resetGrid() {
+    document.getElementById('grid-body').innerHTML = '';
+    document.getElementById('tray-body').innerHTML =
+      '<tr id="tray-empty"><td colspan="15"><div class="tray-empty">No Results</div></td></tr>';
+    updateTrayCount();
+  }
+  function resetTable() {
+    // seed Image-3 table with the 7 baseline roles
+    var seed = ['Architect','Project Manager','Software Engineer','Quality Analyst','DevOps Engineer','Business Analyst','Data Engineer'];
+    var body = document.getElementById('table-body');
+    body.innerHTML = '';
+    seed.forEach(function(role){ body.appendChild(buildTableRow({group:'',role:role,start:'2026-01-01',end:'2026-12-31',num:1,type:'FTE',status:'Pending',hours:MONTHS3})); });
+  }
+
+  function toggleTray() {
+    var on = !document.getElementById('utoggle').classList.contains('off');
+    document.getElementById('bottom-tray').style.display = on ? 'block' : 'none';
+  }
+
+  function monthCells(value, red) {
+    var cls = red ? 'month hr-red hr-edit' : 'month hr-edit';
+    var s = '';
+    for (var i=0;i<8;i++) s += '<td class="'+cls+'">'+value+'</td>';
+    return s;
+  }
+
+  function updateTrayCount() {
+    var rows = document.querySelectorAll('#tray-body tr[data-real]');
+    var n = rows.length;
+    document.getElementById('tray-count').textContent = n;
+    var empty = document.getElementById('tray-empty');
+    if (empty) empty.style.display = n ? 'none' : '';
+  }
+
+  function buildTableRow(d) {
+    var tr = document.createElement('tr');
+    var cells = d.hours.map(function(h){ return '<td class="month hr-edit">'+h+'hr</td>'; }).join('');
+    tr.innerHTML =
+      '<td class="drag">⠿</td>'+
+      '<td>'+(d.group||'')+'</td>'+
+      '<td>'+d.role+'</td>'+
+      '<td>'+d.start+'</td>'+
+      '<td>'+d.end+'</td>'+
+      '<td>'+d.num+'</td>'+
+      '<td>'+d.type+'</td>'+
+      '<td><span class="badge-pending" style="margin:0">'+d.status+'</span></td>'+
+      cells;
+    return tr;
+  }
+
+  /* ---------- Form ---------- */
+  function openForm() {
+    document.getElementById('res-hint').textContent = '';
+    document.getElementById('overlay').classList.add('open');
+  }
+  function closeForm() { document.getElementById('overlay').classList.remove('open'); }
+
+  function submitForm() {
+    var resource = document.getElementById('f-resource').value.trim();
+    var group    = document.getElementById('f-group').value.trim();
+    var role     = document.getElementById('f-role').value.trim();
+    var start    = document.getElementById('f-start').value || '2026-01-01';
+    var end      = document.getElementById('f-end').value || '2026-12-31';
+    var etype    = document.getElementById('f-etype').value;
+    var effort   = document.getElementById('f-effort').value || '1';
+    var name     = document.getElementById('f-name').value.trim();
+    var task     = document.getElementById('f-task').value.trim();
+
+    if (currentFlow === 1) {
+      // Rule 1: Resource provided -> grouped top row with user name; empty -> Unknown top row
+      if (resource) {
+        addGridUserRow({user: resource, task: task, start: start,
+                        name: name || 'Automated Data Retention & Deletion System'});
+      } else {
+        addGridUnknownRow({task: task, start: start,
+                           name: name || 'Automated Data Retention & Deletion System'});
+      }
+      closeForm();
+    }
+    else if (currentFlow === 2) {
+      // Rule 2: Resource provided -> grouped top row with user name; empty -> bottom tray
+      if (resource) {
+        addGridUserRow({user: resource, task: task, start: start,
+                        name: name || 'Automated Data Retention & Deletion System'});
+      } else {
+        addTrayRow({task: task, group: group || 'Unknown', role: role || '', etype: etype});
+        document.getElementById('utoggle').classList.remove('off');
+        toggleTray();
+      }
+      closeForm();
+    }
+    else if (currentFlow === 3) {
+      // Rule 3: single row in the full role table, no bottom tray
+      addFullTableRow({group: group, role: role || 'Software Engineer', start: start, end: end,
+                       type: etype, num: effort, status:'Pending'});
+      closeForm();
+    }
+  }
+
+  /* ---------- Rule 1 & 2: grouped row when a Resource (user) is provided ---------- */
+  function addGridUserRow(d) {
+    var body = document.getElementById('grid-body');
+    // group header = user name
+    var groupTr = document.createElement('tr');
+    groupTr.innerHTML =
+      '<td class="drag">⠿</td>'+
+      '<td><span class="caret">⌄</span><b>'+d.user+'</b></td>'+
+      '<td></td><td>User</td><td>'+d.user+'</td><td></td><td></td>'+
+      '<td>'+d.start+'</td>'+
+      monthCells('80hr', false);
+    // child task row
+    var childTr = document.createElement('tr');
+    childTr.className = 'alt';
+    childTr.innerHTML =
+      '<td class="drag">⠿</td>'+
+      '<td style="padding-left:30px"><a class="dlink" href="#">'+d.name+'</a></td>'+
+      '<td></td><td></td><td></td><td></td><td></td>'+
+      '<td>'+d.start+'</td>'+
+      monthCells('80hr', false);
+    body.appendChild(groupTr);
+    body.appendChild(childTr);
+  }
+
+  /* ---------- Rule 1: Unknown grouped row in top grid ---------- */
+  function addGridUnknownRow(d) {
+    var body = document.getElementById('grid-body');
+    // group header (Unknown) with red allocation
+    var groupTr = document.createElement('tr');
+    groupTr.className = 'unknown-row';
+    groupTr.innerHTML =
+      '<td class="drag">⠿</td>'+
+      '<td class="first-grp"><span class="caret">⌄</span>Unknown</td>'+
+      '<td></td><td></td><td></td><td></td><td></td>'+
+      '<td>'+d.start+'</td>'+
+      monthCells('80hr', true);
+    // child task row
+    var childTr = document.createElement('tr');
+    childTr.innerHTML =
+      '<td class="drag">⠿</td>'+
+      '<td><a class="dlink" href="#">'+d.name+'</a></td>'+
+      '<td></td><td></td><td></td><td></td><td></td>'+
+      '<td>'+d.start+'</td>'+
+      monthCells('80hr', false);
+    body.appendChild(groupTr);
+    body.appendChild(childTr);
+  }
+
+  /* ---------- Rule 2: row in bottom tray ---------- */
+  function addTrayRow(d) {
+    var body = document.getElementById('tray-body');
+    var tr = document.createElement('tr');
+    tr.setAttribute('data-real','1');
+    tr.innerHTML =
+      '<td><a class="dlink" href="#">'+(d.task||'New Task')+'</a></td>'+
+      '<td>Automated Data Retention &amp; Deletion System</td>'+
+      '<td>Project</td>'+
+      '<td></td>'+
+      '<td>80hr</td>'+
+      '<td>'+d.group+'</td>'+
+      '<td>'+(d.role||'')+'</td>'+
+      monthCells('80hr', false);
+    body.appendChild(tr);
+    updateTrayCount();
+  }
+
+  /* ---------- Rule 3: single row in full table ---------- */
+  function addFullTableRow(d) {
+    var body = document.getElementById('table-body');
+    var row = buildTableRow({
+      group: d.group, role: d.role, start: d.start, end: d.end,
+      num: d.num, type: d.type, status: d.status, hours: MONTHS3
+    });
+    row.style.background = '#eafbe6'; // brief highlight to show the new single row
+    body.appendChild(row);
+    setTimeout(function(){ row.style.background=''; }, 1400);
+  }
+
+  // close modal on overlay click
+  document.getElementById('overlay').addEventListener('click', function(e){
+    if (e.target === this) closeForm();
+  });
+
+  /* ---------- Double-click to edit monthly hour cells ---------- */
+  document.addEventListener('dblclick', function(e){
+    var cell = e.target.closest('td.hr-edit');
+    if (!cell || cell.classList.contains('editing')) return;
+    beginEdit(cell);
+  });
+
+  function beginEdit(cell) {
+    var original = cell.textContent;                 // e.g. "80hr"
+    var num = original.replace(/[^0-9.]/g, '');       // strip to number
+    cell.dataset.prev = original;
+    cell.classList.add('editing');
+    cell.innerHTML = '<input type="text" value="'+num+'">';
+    var input = cell.querySelector('input');
+    input.focus();
+    input.select();
+
+    input.addEventListener('keydown', function(ev){
+      if (ev.key === 'Enter') { ev.preventDefault(); cell.dataset.committed = '1'; commitEdit(cell, input.value); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); cell.dataset.committed = '1'; cancelEdit(cell); }
+    });
+    input.addEventListener('blur', function(){
+      // if Enter/Escape already handled it, do nothing
+      if (cell.dataset.committed === '1') { delete cell.dataset.committed; return; }
+      cancelEdit(cell);
+    });
+  }
+
+  function commitEdit(cell, raw) {
+    var n = raw.replace(/[^0-9.]/g, '');             // strip non-numbers
+    var saved = (n === '' ? '0' : n) + 'hr';         // keep "hr" suffix
+    cell.classList.remove('editing');
+    cell.textContent = saved;
+  }
+
+  function cancelEdit(cell) {
+    if (!cell.classList.contains('editing')) return;
+    cell.classList.remove('editing');
+    cell.textContent = cell.dataset.prev || cell.textContent;
+  }
+</script>
+</body>
+</html>
